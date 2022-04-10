@@ -19,7 +19,24 @@ class Dragon:
         try: next(self._pyh.gen)
         except: pass
         os.system(f"rm -r {os.path.join(self.path,self.proj+'-copy*')}")
+    
+    def toAddr(self, addr): return self.api.toAddr(hex(addr))
 
+    def emu(self):
+        from ghidra.app.emulator import EmulatorHelper
+        return EmulatorHelper(self.api.currentProgram)
+    
+    def call(self, emu, addr, *args):
+        # TODO: get calling convention from eagle
+        if str(self.api.currentProgram.languageID) == 'MIPS:LE:32:default':
+            emu.writeRegister('ra', 0x12345678)
+            emu.writeRegister('pc', addr)
+            for i,a in enumerate(args):
+                emu.writeRegister(f'a{i}', a)
+            emu.setBreakpoint(self.toAddr(0x12345678))
+            emu.run(self.api.monitor)
+        else:
+            raise Exception('calling convention needs implementing')
 
 '''
 patch to pyhidra:
