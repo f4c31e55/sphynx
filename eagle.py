@@ -1,6 +1,13 @@
 import angr
 from angr_targets import ConcreteTarget
 
+emit = angr.misc.loggers.CuteHandler.emit
+def patched_emit(self, record):
+    if record.name.startswith('pwn'): return
+    emit(self, record)
+angr.misc.loggers.CuteHandler.emit = patched_emit
+
+
 class OwlBear(ConcreteTarget):
     ''' it's really an EagleLion '''
     def __init__(self, lion):
