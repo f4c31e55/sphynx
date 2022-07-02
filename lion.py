@@ -2,18 +2,18 @@ import os, atexit
 from pwn import process, gdb, context
 '''
 lion is basically avatar
-but we need to leave the gdb for our interactive so shrug
+but we need to leave the gdb for our interactive so *shrug*
 '''
 
 class Lion:
-    def __init__(self, gdb_port=None):
-        if gdb_port: 
-            _, self.gdb = gdb.attach(('127.0.0.1', gdb_port), exe=1, api=True)
+    def __init__(self, gdb_api):
+        self.gdb = gdb_api
     
     def rm(self, addr, size): return self.gdb.selected_inferior().read_memory(addr,size).tobytes()
     def wm(self, addr, data): return self.gdb.selected_inferior().write_memory(addr,data)
     def rr(self, r): 
-        return int(self.gdb.parse_and_eval(f'${r}').cast(self.gdb.lookup_type('unsigned int')))
+        return int(self.gdb.newest_frame().read_register(r).cast(self.gdb.lookup_type('unsigned long')))
+        # return int(self.gdb.parse_and_eval(f'${r}').cast(self.gdb.lookup_type('unsigned long')))
     def wr(self, r, v): return self.gdb.execute(f'set ${r}={v}')
 
     def run_shellcode(self, code):
@@ -33,11 +33,12 @@ class Lion:
 
 class Panda(Lion):
     ''' a lion that expects a pypanda script '''
-    def __init__(self, *args, debug=True, image='pandare/panda', script='panda.py'):
-        global process
-        self.process = process
+    def __init__(self, *args, image='pandare/panda', script='panda.py'):
+        global process,context
+        self.process,self.context = process,context
 
-        self.console = self.process([
+        with context.quiet:
+            self.console = process([
             "docker","run","--name","sphynx","--rm",
             "-e",'TERM=xterm', # for term things
             "-v",os.path.dirname(os.path.abspath(script))+":/host", # for script sharing
@@ -46,6 +47,10 @@ class Panda(Lion):
             image,
             "python3",'-u',os.path.join("/host",script)])
         
-        atexit.register(lambda: self.process(['docker', 'kill', 'sphynx']).recvuntil(b'sphynx'))
+        def clean(): 
+            with self.context.quiet: 
+                self.process(['docker', 'kill', 'sphynx']).recvuntil(b'sphynx')
+        atexit.register(clean)
 
-        super().__init__(1234)
+        with context.quiet: _,api = gdb.attach(('127.0.0.1', 1234), exe=1, api=True)
+        super().__init__(api)
