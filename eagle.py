@@ -1,5 +1,12 @@
 import angr
 from angr_targets import ConcreteTarget
+from angr_targets.memory_map import MemoryMap
+
+import os, logging
+from re import findall
+
+log = logging.getLogger('eagle')
+log.setLevel(logging.INFO)
 
 emit = angr.misc.loggers.CuteHandler.emit
 def patched_emit(self, record):
@@ -25,6 +32,9 @@ class OwlBear(ConcreteTarget):
         try: return self.lion.rr(register)
         except Exception as e: raise angr.SimConcreteRegisterError(f"OwlBear can't read register {register} exception {e}")
     
+    def write_register(self, register, value):
+        return self.lion.wr(register, value)
+    
     def set_breakpoint(self, address, **kwargs): 
         return self.lion.gdb.execute(f"bp {hex(address)}")
     
@@ -33,6 +43,28 @@ class OwlBear(ConcreteTarget):
             if hex(address) in bp.location: bp.delete()
     
     def run(self): return self.lion.gdb.continue_and_wait()
+
+    def get_mappings(self):
+        vmmap = self.lion.gdb.execute('vmmap', to_string=True)
+        return [
+            MemoryMap(int(s,16), int(e,16), None, os.path.basename(p)) for s,e,p in findall(" (0x[0-9a-f]+).* (0x[0-9a-f]+).*?([^ ]+?)\x1b", vmmap)[::-1] if not p.startswith("[")
+        ]
+    
+    def load_addrs(self, exe_path):
+
+        main_opts, lib_opts = {},{}
+        try:
+            vmmap = self.lion.gdb.execute('vmmap', to_string=True)
+            load_addrs = {os.path.basename(p):int(s,16) for s,_,p in  findall(" (0x[0-9a-f]+).* (0x[0-9a-f]+).*?([^ ]+?)\x1b", vmmap)[::-1] if not p.startswith("[")}
+
+            main_opts = {'base_addr':y for x,y in load_addrs.items() if x == os.path.basename(exe_path)}
+            lib_opts = {x:{'base_addr':y} for x,y in load_addrs.items() if x != os.path.basename(exe_path)}
+        
+        except Exception as e:
+            log.warning(f"Couldn't get loaded addresses: {e}")
+
+
+        return main_opts, lib_opts
 
 
 class Eagle:
