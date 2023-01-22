@@ -8,7 +8,7 @@ but we need to leave the gdb for our interactive so *shrug*
 class Lion:
     def __init__(self, gdb_api):
         self.gdb = gdb_api
-    
+
     def rm(self, addr, size): return self.gdb.selected_inferior().read_memory(addr,size).tobytes()
     def wm(self, addr, data): return self.gdb.selected_inferior().write_memory(addr,data)
     def rr(self, r): 
@@ -39,14 +39,14 @@ class Panda(Lion):
 
         with context.quiet:
             self.console = process([
-            "docker","run","--name","sphynx","--rm",
-            "-e",'TERM=xterm', # for term things
-            "-v",os.path.dirname(os.path.abspath(script))+":/host", # for script sharing
-            '-v','/tmp:/tmp', # for pwntools gdb
-            "--network","host", # for gdb
-            image,
-            "python3",'-u',os.path.join("/host",script)])
-        
+                "docker","run","--name","sphynx","--rm",
+                "-e",'TERM=xterm', # for term things
+                "-v",os.path.dirname(os.path.abspath(script))+":/host", # for script sharing
+                '-v','/tmp:/tmp', # for pwntools gdb
+                "--network","host", # for gdb
+                image,
+                "python3",'-u',os.path.join("/host",script)])
+
         def clean(): 
             with self.context.quiet: 
                 self.process(['docker', 'kill', 'sphynx']).recvuntil(b'sphynx')

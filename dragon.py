@@ -1,4 +1,4 @@
-import os; os.environ['GHIDRA_INSTALL_DIR'] = '/home/user/tools/ghidra_10.1.2_PUBLIC/'
+import os; os.environ['GHIDRA_INSTALL_DIR'] = '/home/user/tools/ghidra_10.1.5_PUBLIC/'
 import pyhidra
 
 import logging
